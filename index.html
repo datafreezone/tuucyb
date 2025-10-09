@@ -671,6 +671,98 @@
             box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
             letter-spacing: 0.05em;
         }
+
+        .search-section {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            border: 1px solid var(--border-primary);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .search-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+            flex: 1;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.875rem 1rem 0.875rem 3rem;
+            font-size: 1rem;
+            border: 2px solid var(--border-primary);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.9);
+            color: var(--text-primary);
+            outline: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+            background: rgba(255, 255, 255, 1);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-tertiary);
+            font-size: 1.25rem;
+            pointer-events: none;
+        }
+
+        .search-clear {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            font-size: 1.125rem;
+            display: none;
+        }
+
+        .search-clear:hover {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-danger);
+        }
+
+        .search-results-info {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+
+        .search-highlight {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            padding: 0.125rem 0.25rem;
+            border-radius: 4px;
+            font-weight: 500;
+            color: #92400e;
+        }
     </style>
 </head>
 <body>
@@ -809,6 +901,25 @@
             <button class="tab-button" data-category="ajankohtaista">Yleiset Tiedotteet</button>
         </div>
 
+        <div class="search-section">
+            <div class="search-container">
+                <div class="search-input-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <input 
+                        type="text" 
+                        id="search-input" 
+                        class="search-input" 
+                        placeholder="Etsi uhkia, haavoittuvuuksia, organisaatioita..."
+                        autocomplete="off"
+                    >
+                    <button class="search-clear" id="search-clear" title="Tyhjennä haku">
+                        ✕
+                    </button>
+                </div>
+            </div>
+            <div class="search-results-info" id="search-results-info"></div>
+        </div>
+
         <div class="content-section">
             <div class="section-header">
                 <h2 class="section-title">
@@ -836,6 +947,8 @@
                 this.lastUpdate = null;
                 this.feedBuildDate = null;
                 this.activeCategory = 'kaikki';
+                this.searchTerm = '';
+                this.filteredItems = [];
                 
                 this.init();
             }
@@ -852,6 +965,28 @@
                         this.switchCategory(button.dataset.category);
                     });
                 });
+                
+                // Search functionality
+                const searchInput = document.getElementById('search-input');
+                const searchClear = document.getElementById('search-clear');
+                
+                if (searchInput) {
+                    searchInput.addEventListener('input', (e) => {
+                        this.handleSearch(e.target.value);
+                    });
+                    
+                    searchInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Escape') {
+                            this.clearSearch();
+                        }
+                    });
+                }
+                
+                if (searchClear) {
+                    searchClear.addEventListener('click', () => {
+                        this.clearSearch();
+                    });
+                }
             }
 
             async loadContent() {
@@ -1141,18 +1276,88 @@
             displayContent() {
                 const container = document.getElementById('content-list');
                 
-                let filteredItems = this.items;
-                if (this.activeCategory !== 'kaikki') {
-                    filteredItems = this.items.filter(item => item.category === this.activeCategory);
-                }
+                let filteredItems = this.getFilteredItems();
                 
                 if (filteredItems.length === 0) {
-                    container.innerHTML = '<div class="loading">Ei tapahtumia valitussa kategoriassa</div>';
+                    const message = this.searchTerm ? 
+                        `Ei tuloksia haulle "${this.searchTerm}"` : 
+                        'Ei tapahtumia valitussa kategoriassa';
+                    container.innerHTML = `<div class="loading">${message}</div>`;
+                    this.updateSearchResults(0, 0);
                     return;
                 }
 
                 const html = filteredItems.map(item => this.renderItem(item)).join('');
                 container.innerHTML = html;
+                
+                // Update search results info
+                if (this.searchTerm) {
+                    this.updateSearchResults(filteredItems.length, this.items.length);
+                } else {
+                    this.updateSearchResults(0, 0);
+                }
+            }
+            
+            getFilteredItems() {
+                let filteredItems = this.items;
+                
+                // Apply category filter
+                if (this.activeCategory !== 'kaikki') {
+                    filteredItems = filteredItems.filter(item => item.category === this.activeCategory);
+                }
+                
+                // Apply search filter
+                if (this.searchTerm) {
+                    const searchLower = this.searchTerm.toLowerCase();
+                    filteredItems = filteredItems.filter(item => {
+                        return (
+                            item.title.toLowerCase().includes(searchLower) ||
+                            item.description.toLowerCase().includes(searchLower) ||
+                            item.categoryLabel.toLowerCase().includes(searchLower)
+                        );
+                    });
+                }
+                
+                return filteredItems;
+            }
+            
+            handleSearch(searchTerm) {
+                this.searchTerm = searchTerm.trim();
+                
+                const searchClear = document.getElementById('search-clear');
+                if (searchClear) {
+                    searchClear.style.display = this.searchTerm ? 'block' : 'none';
+                }
+                
+                console.log(`🔍 Haku: "${this.searchTerm}"`);
+                this.displayContent();
+            }
+            
+            clearSearch() {
+                const searchInput = document.getElementById('search-input');
+                const searchClear = document.getElementById('search-clear');
+                const searchResults = document.getElementById('search-results-info');
+                
+                if (searchInput) searchInput.value = '';
+                if (searchClear) searchClear.style.display = 'none';
+                if (searchResults) searchResults.textContent = '';
+                
+                this.searchTerm = '';
+                console.log('🔍 Haku tyhjennetty');
+                this.displayContent();
+            }
+            
+            updateSearchResults(foundCount, totalCount) {
+                const searchResults = document.getElementById('search-results-info');
+                if (!searchResults) return;
+                
+                if (this.searchTerm && foundCount > 0) {
+                    searchResults.textContent = `Löytyi ${foundCount} tulosta hakusanalle "${this.searchTerm}"`;
+                } else if (this.searchTerm && foundCount === 0) {
+                    searchResults.textContent = `Ei tuloksia hakusanalle "${this.searchTerm}". Kokeile eri hakusanoja.`;
+                } else {
+                    searchResults.textContent = '';
+                }
             }
 
             renderItem(item) {
@@ -1166,11 +1371,15 @@
                 });
 
                 const newClass = item.isNew ? 'highlight-new' : '';
+                
+                // Highlight search terms
+                const highlightedTitle = this.highlightSearchTerm(item.title);
+                const highlightedDescription = this.highlightSearchTerm(item.description);
 
                 return `
                     <div class="content-item ${newClass}">
                         <div class="item-header">
-                            <div class="item-title">${item.title}</div>
+                            <div class="item-title">${highlightedTitle}</div>
                             <div class="item-category category-${item.category}">
                                 ${item.icon} ${item.categoryLabel}
                             </div>
@@ -1192,7 +1401,7 @@
                         </div>
                         
                         <div class="item-description">
-                            ${item.description}
+                            ${highlightedDescription}
                         </div>
                         
                         <div class="item-actions">
@@ -1205,6 +1414,15 @@
                         </div>
                     </div>
                 `;
+            }
+            
+            highlightSearchTerm(text) {
+                if (!this.searchTerm || !text) {
+                    return text;
+                }
+                
+                const searchRegex = new RegExp(`(${this.searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                return text.replace(searchRegex, '<span class="search-highlight">$1</span>');
             }
 
             updateTimestamps() {
