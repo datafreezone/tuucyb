@@ -855,63 +855,101 @@
             }
 
             async loadContent() {
-                try {
-                    document.getElementById('connection-status').textContent = 'Päivitetään...';
-                    
-                    // Use CORS proxy to access the RSS feed
-                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(this.feedUrl)}`;
-                    const response = await fetch(proxyUrl);
-                    
-                    if (!response.ok) {
-                        throw new Error(`Proxy response error: ${response.status}`);
+                const proxies = [
+                    {
+                        name: 'AllOrigins',
+                        url: `https://api.allorigins.win/get?url=${encodeURIComponent(this.feedUrl)}`,
+                        isJson: true
+                    },
+                    {
+                        name: 'CORS Anywhere',
+                        url: `https://cors-anywhere.herokuapp.com/${this.feedUrl}`,
+                        isJson: false
+                    },
+                    {
+                        name: 'ThingProxy',
+                        url: `https://thingproxy.freeboard.io/fetch/${this.feedUrl}`,
+                        isJson: false
+                    },
+                    {
+                        name: 'CORS.io',
+                        url: `https://cors.io/?${this.feedUrl}`,
+                        isJson: false
+                    },
+                    {
+                        name: 'Proxy.Cors.sh',
+                        url: `https://proxy.cors.sh/${this.feedUrl}`,
+                        isJson: false
                     }
-                    
-                    const data = await response.json();
-                    
-                    let xmlContent;
-                    
-                    // Check if data is base64 encoded
-                    if (data.contents && data.contents.startsWith('data:application/rss+xml; charset=utf-8;base64,')) {
-                        // Decode base64 content
-                        const base64Content = data.contents.replace('data:application/rss+xml; charset=utf-8;base64,', '');
-                        xmlContent = atob(base64Content);
-                        console.log('Decoded base64 RSS content:', xmlContent.substring(0, 200));
-                    } else if (data.contents) {
-                        // Use contents directly if not base64
-                        xmlContent = data.contents;
-                        console.log('Using direct RSS content:', xmlContent.substring(0, 200));
-                    } else {
-                        throw new Error('No contents received from proxy');
-                    }
-                    
-                    this.parseRSSFeed(xmlContent);
-                    this.updateDisplay();
-                    document.getElementById('connection-status').textContent = 'Yhdistetty';
-                    
-                } catch (error) {
-                    console.error('Virhe ladattaessa tiedustelutietoja:', error);
-                    
-                    // Try backup proxy
+                ];
+
+                document.getElementById('connection-status').textContent = 'Päivitetään...';
+                console.log('🔄 Aloitetaan tietojen lataus NCSC-FI syötteestä...');
+                
+                for (let i = 0; i < proxies.length; i++) {
+                    const proxy = proxies[i];
                     try {
-                        console.log('Kokeillaan varaproxy-palvelinta...');
-                        const backupProxy = `https://corsproxy.io/?${encodeURIComponent(this.feedUrl)}`;
-                        const backupResponse = await fetch(backupProxy);
+                        console.log(`🌐 Kokeillaan proxy ${i + 1}/${proxies.length}: ${proxy.name}`);
+                        console.log(`📡 URL: ${proxy.url}`);
                         
-                        if (!backupResponse.ok) {
-                            throw new Error(`Varaproxy virhe: ${backupResponse.status}`);
+                        const response = await fetch(proxy.url, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/rss+xml, application/xml, text/xml, text/plain, */*'
+                            }
+                        });
+                        
+                        console.log(`📊 Vastaus: ${response.status} ${response.statusText}`);
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                         }
                         
-                        const backupContent = await backupResponse.text();
-                        console.log('Varaproxy sisältö:', backupContent.substring(0, 200));
+                        let xmlContent;
                         
-                        this.parseRSSFeed(backupContent);
-                        this.updateDisplay();
-                        document.getElementById('connection-status').textContent = 'Yhdistetty';
+                        if (proxy.isJson) {
+                            const data = await response.json();
+                            console.log('📦 JSON vastaus:', data);
+                            
+                            if (data.contents) {
+                                // Handle potential base64 encoding
+                                if (data.contents.startsWith('data:application/rss+xml; charset=utf-8;base64,')) {
+                                    const base64Content = data.contents.replace('data:application/rss+xml; charset=utf-8;base64,', '');
+                                    xmlContent = atob(base64Content);
+                                    console.log('🔓 Dekoodattu base64 sisältö');
+                                } else {
+                                    xmlContent = data.contents;
+                                }
+                            } else {
+                                throw new Error('Ei sisältöä JSON vastauksessa');
+                            }
+                        } else {
+                            xmlContent = await response.text();
+                        }
                         
-                    } catch (backupError) {
-                        console.error('Myös varaproxy epäonnistui:', backupError);
-                        this.showError('Tiedustelutiedot eivät saatavilla. Yhteys epäonnistui molemmilla proxy-palvelimilla.');
-                        document.getElementById('connection-status').textContent = 'Virhe';
+                        console.log('📄 XML sisältö (ensimmäiset 300 merkkiä):', xmlContent.substring(0, 300));
+                        
+                        if (xmlContent && xmlContent.includes('<rss') && xmlContent.includes('<channel>')) {
+                            console.log('✅ Kelvollinen RSS syöte löytyi!');
+                            this.parseRSSFeed(xmlContent);
+                            this.updateDisplay();
+                            document.getElementById('connection-status').textContent = 'Yhdistetty';
+                            console.log(`🎉 Tiedot ladattu onnistuneesti proxy:lla ${proxy.name}`);
+                            return; // Success, exit the loop
+                        } else {
+                            throw new Error('Ei kelvollista RSS sisältöä');
+                        }
+                        
+                    } catch (error) {
+                        console.error(`❌ Proxy ${proxy.name} epäonnistui:`, error.message);
+                        if (i === proxies.length - 1) {
+                            // Last proxy failed
+                            console.error('🚫 Kaikki proxy palvelut epäonnistuivat');
+                            this.showError(`Tietojen lataus epäonnistui. Kaikki proxy palvelut eivät toimi. Viimeisin virhe: ${error.message}`);
+                            document.getElementById('connection-status').textContent = 'Virhe';
+                        } else {
+                            console.log('🔄 Kokeillaan seuraavaa proxy palvelinta...');
+                        }
                     }
                 }
             }
@@ -1135,8 +1173,73 @@
             }
 
             showError(message) {
+                console.log('🚫 Näytetään virhe käyttäjälle ja ladataan demo-dataa');
                 document.getElementById('content-list').innerHTML = 
-                    `<div class="error">${message}</div>`;
+                    `<div class="error">${message}<br><br>🔄 Ladataan demo-dataa näytettäväksi...</div>`;
+                
+                // Load demo data as fallback
+                setTimeout(() => this.loadDemoData(), 2000);
+            }
+            
+            loadDemoData() {
+                console.log('📋 Ladataan demo-dataa...');
+                const demoData = `
+                <?xml version="1.0" encoding="UTF-8"?>
+                <rss version="2.0">
+                <channel>
+                    <title>NCSC-FI RSS Syöte - Demo</title>
+                    <description>Kansallinen kyberturvallisuuskeskus - Demotiedot</description>
+                    <lastBuildDate>Thu, 09 Oct 2025 11:00:00 GMT</lastBuildDate>
+                    
+                    <item>
+                        <title>Kriittinen haavoittuvuus Apache HTTP Server -palvelimessa</title>
+                        <link>https://www.kyberturvallisuuskeskus.fi/fi/haavoittuvuus_2025_001</link>
+                        <pubDate>Thu, 09 Oct 2025 10:30:00 GMT</pubDate>
+                        <description>Apache HTTP Server -palvelimessa on havaittu kriittinen haavoittuvuus, joka mahdollistaa etäkoodin suorittamisen. Suosittelemme välitöntä päivitystä uusimpaan versioon.</description>
+                    </item>
+                    
+                    <item>
+                        <title>Varoitus: Uusi tietojenkalastelukampanja kohdistuu suomalaisiin pankkiasiakkaisiin</title>
+                        <link>https://www.kyberturvallisuuskeskus.fi/fi/varoitus_2025_002</link>
+                        <pubDate>Wed, 08 Oct 2025 14:15:00 GMT</pubDate>
+                        <description>Havaitsimme laajan tietojenkalastelukampanjan, joka matkii suomalaisten pankkien verkkosivuja. Kampanja pyrkii huijaamaan käyttäjiä luovuttamaan pankkitunnuksensa.</description>
+                    </item>
+                    
+                    <item>
+                        <title>Kyberturvallisuuden viikkokatsaus 41/2025</title>
+                        <link>https://www.kyberturvallisuuskeskus.fi/fi/viikkokatsaus_2025_41</link>
+                        <pubDate>Mon, 06 Oct 2025 09:00:00 GMT</pubDate>
+                        <description>Viikon 41 kyberturvallisuuskatsaus: Uusia uhkia, haavoittuvuuksia ja suojautumisohjeita suomalaisille organisaatioille.</description>
+                    </item>
+                    
+                    <item>
+                        <title>Kybersää lokakuu 2025: Uhka-arvio ja suositukset</title>
+                        <link>https://www.kyberturvallisuuskeskus.fi/fi/kybersaa_2025_10</link>
+                        <pubDate>Tue, 01 Oct 2025 08:00:00 GMT</pubDate>
+                        <description>Lokakuun 2025 kybersää-raportti sisältää arvion ajankohtaisista kyberuhista ja suosituksia organisaatioille.</description>
+                    </item>
+                    
+                    <item>
+                        <title>Tiedote: Kyberturvallisuuskeskuksen uudet palvelut</title>
+                        <link>https://www.kyberturvallisuuskeskus.fi/fi/ajankohtaista_2025_003</link>
+                        <pubDate>Fri, 03 Oct 2025 12:00:00 GMT</pubDate>
+                        <description>NCSC-FI lanseeraa uusia kyberturvallisuuspalveluita suomalaisille organisaatioille. Lue lisää uusista palveluistamme ja niiden hyödyistä.</description>
+                    </item>
+                </channel>
+                </rss>
+                `;
+                
+                console.log('✅ Demo-data ladattu, parsitaan RSS...');
+                this.parseRSSFeed(demoData);
+                this.updateDisplay();
+                document.getElementById('connection-status').textContent = 'Demo-data';
+                
+                // Show notice about demo data
+                const contentList = document.getElementById('content-list');
+                const demoNotice = document.createElement('div');
+                demoNotice.style.cssText = 'background: #fef3c7; border: 1px solid #f59e0b; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; color: #92400e;';
+                demoNotice.innerHTML = '⚠️ <strong>Demo-tila:</strong> Näytetään esimerkkitietoja. Oikeat tiedot ladataan, kun proxy-yhteys toimii.';
+                contentList.insertBefore(demoNotice, contentList.firstChild);
             }
         }
 
