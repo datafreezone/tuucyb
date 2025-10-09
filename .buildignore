@@ -1,0 +1,4 @@
+*.md
+*.txt
+*.zip
+deploy-to-azure.ps1
