@@ -1173,73 +1173,104 @@
             }
 
             showError(message) {
-                console.log('🚫 Näytetään virhe käyttäjälle ja ladataan demo-dataa');
+                console.log('🚫 Näytetään virhe käyttäjälle ja ladataan demo-dataa HETI');
                 document.getElementById('content-list').innerHTML = 
                     `<div class="error">${message}<br><br>🔄 Ladataan demo-dataa näytettäväksi...</div>`;
                 
-                // Load demo data as fallback
-                setTimeout(() => this.loadDemoData(), 2000);
+                // Load demo data immediately as fallback
+                console.log('⚡ Ladataan demo-data välittömästi...');
+                this.loadDemoData();
             }
             
             loadDemoData() {
-                console.log('📋 Ladataan demo-dataa...');
-                const demoData = `
-                <?xml version="1.0" encoding="UTF-8"?>
-                <rss version="2.0">
-                <channel>
-                    <title>NCSC-FI RSS Syöte - Demo</title>
-                    <description>Kansallinen kyberturvallisuuskeskus - Demotiedot</description>
-                    <lastBuildDate>Thu, 09 Oct 2025 11:00:00 GMT</lastBuildDate>
-                    
-                    <item>
-                        <title>Kriittinen haavoittuvuus Apache HTTP Server -palvelimessa</title>
-                        <link>https://www.kyberturvallisuuskeskus.fi/fi/haavoittuvuus_2025_001</link>
-                        <pubDate>Thu, 09 Oct 2025 10:30:00 GMT</pubDate>
-                        <description>Apache HTTP Server -palvelimessa on havaittu kriittinen haavoittuvuus, joka mahdollistaa etäkoodin suorittamisen. Suosittelemme välitöntä päivitystä uusimpaan versioon.</description>
-                    </item>
-                    
-                    <item>
-                        <title>Varoitus: Uusi tietojenkalastelukampanja kohdistuu suomalaisiin pankkiasiakkaisiin</title>
-                        <link>https://www.kyberturvallisuuskeskus.fi/fi/varoitus_2025_002</link>
-                        <pubDate>Wed, 08 Oct 2025 14:15:00 GMT</pubDate>
-                        <description>Havaitsimme laajan tietojenkalastelukampanjan, joka matkii suomalaisten pankkien verkkosivuja. Kampanja pyrkii huijaamaan käyttäjiä luovuttamaan pankkitunnuksensa.</description>
-                    </item>
-                    
-                    <item>
-                        <title>Kyberturvallisuuden viikkokatsaus 41/2025</title>
-                        <link>https://www.kyberturvallisuuskeskus.fi/fi/viikkokatsaus_2025_41</link>
-                        <pubDate>Mon, 06 Oct 2025 09:00:00 GMT</pubDate>
-                        <description>Viikon 41 kyberturvallisuuskatsaus: Uusia uhkia, haavoittuvuuksia ja suojautumisohjeita suomalaisille organisaatioille.</description>
-                    </item>
-                    
-                    <item>
-                        <title>Kybersää lokakuu 2025: Uhka-arvio ja suositukset</title>
-                        <link>https://www.kyberturvallisuuskeskus.fi/fi/kybersaa_2025_10</link>
-                        <pubDate>Tue, 01 Oct 2025 08:00:00 GMT</pubDate>
-                        <description>Lokakuun 2025 kybersää-raportti sisältää arvion ajankohtaisista kyberuhista ja suosituksia organisaatioille.</description>
-                    </item>
-                    
-                    <item>
-                        <title>Tiedote: Kyberturvallisuuskeskuksen uudet palvelut</title>
-                        <link>https://www.kyberturvallisuuskeskus.fi/fi/ajankohtaista_2025_003</link>
-                        <pubDate>Fri, 03 Oct 2025 12:00:00 GMT</pubDate>
-                        <description>NCSC-FI lanseeraa uusia kyberturvallisuuspalveluita suomalaisille organisaatioille. Lue lisää uusista palveluistamme ja niiden hyödyistä.</description>
-                    </item>
-                </channel>
-                </rss>
-                `;
+                console.log('📋 ALOITETAAN DEMO-DATA LATAUS');
                 
-                console.log('✅ Demo-data ladattu, parsitaan RSS...');
-                this.parseRSSFeed(demoData);
-                this.updateDisplay();
-                document.getElementById('connection-status').textContent = 'Demo-data';
-                
-                // Show notice about demo data
-                const contentList = document.getElementById('content-list');
-                const demoNotice = document.createElement('div');
-                demoNotice.style.cssText = 'background: #fef3c7; border: 1px solid #f59e0b; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; color: #92400e;';
-                demoNotice.innerHTML = '⚠️ <strong>Demo-tila:</strong> Näytetään esimerkkitietoja. Oikeat tiedot ladataan, kun proxy-yhteys toimii.';
-                contentList.insertBefore(demoNotice, contentList.firstChild);
+                try {
+                    // Create demo items directly instead of parsing XML
+                    this.items = [
+                        {
+                            title: 'Kriittinen haavoittuvuus Apache HTTP Server -palvelimessa',
+                            link: 'https://www.kyberturvallisuuskeskus.fi/fi/haavoittuvuus_2025_001',
+                            pubDate: 'Thu, 09 Oct 2025 10:30:00 GMT',
+                            description: 'Apache HTTP Server -palvelimessa on havaittu kriittinen haavoittuvuus, joka mahdollistaa etäkoodin suorittamisen. Suosittelemme välitöntä päivitystä uusimpaan versioon.',
+                            category: 'haavoittuvuus',
+                            categoryLabel: 'Haavoittuvuus',
+                            icon: '🚨',
+                            isNew: true,
+                            id: 'demo-001'
+                        },
+                        {
+                            title: 'Varoitus: Uusi tietojenkalastelukampanja kohdistuu suomalaisiin pankkiasiakkaisiin',
+                            link: 'https://www.kyberturvallisuuskeskus.fi/fi/varoitus_2025_002',
+                            pubDate: 'Wed, 08 Oct 2025 14:15:00 GMT',
+                            description: 'Havaitsimme laajan tietojenkalastelukampanjan, joka matkii suomalaisten pankkien verkkosivuja. Kampanja pyrkii huijaamaan käyttäjiä luovuttamaan pankkitunnuksensa.',
+                            category: 'varoitus',
+                            categoryLabel: 'Varoitus',
+                            icon: '⚠️',
+                            isNew: true,
+                            id: 'demo-002'
+                        },
+                        {
+                            title: 'Kyberturvallisuuden viikkokatsaus 41/2025',
+                            link: 'https://www.kyberturvallisuuskeskus.fi/fi/viikkokatsaus_2025_41',
+                            pubDate: 'Mon, 06 Oct 2025 09:00:00 GMT',
+                            description: 'Viikon 41 kyberturvallisuuskatsaus: Uusia uhkia, haavoittuvuuksia ja suojautumisohjeita suomalaisille organisaatioille.',
+                            category: 'katsaus',
+                            categoryLabel: 'Viikkokatsaus',
+                            icon: '📊',
+                            isNew: false,
+                            id: 'demo-003'
+                        },
+                        {
+                            title: 'Kybersää lokakuu 2025: Uhka-arvio ja suositukset',
+                            link: 'https://www.kyberturvallisuuskeskus.fi/fi/kybersaa_2025_10',
+                            pubDate: 'Tue, 01 Oct 2025 08:00:00 GMT',
+                            description: 'Lokakuun 2025 kybersää-raportti sisältää arvion ajankohtaisista kyberuhista ja suosituksia organisaatioille.',
+                            category: 'kybersaa',
+                            categoryLabel: 'Kybersää',
+                            icon: '🌤️',
+                            isNew: false,
+                            id: 'demo-004'
+                        },
+                        {
+                            title: 'Tiedote: Kyberturvallisuuskeskuksen uudet palvelut',
+                            link: 'https://www.kyberturvallisuuskeskus.fi/fi/ajankohtaista_2025_003',
+                            pubDate: 'Fri, 03 Oct 2025 12:00:00 GMT',
+                            description: 'NCSC-FI lanseeraa uusia kyberturvallisuuspalveluita suomalaisille organisaatioille. Lue lisää uusista palveluistamme ja niiden hyödyistä.',
+                            category: 'ajankohtaista',
+                            categoryLabel: 'Ajankohtaista',
+                            icon: '📰',
+                            isNew: false,
+                            id: 'demo-005'
+                        }
+                    ];
+                    
+                    this.lastUpdate = new Date();
+                    this.feedBuildDate = 'Thu, 09 Oct 2025 11:00:00 GMT';
+                    
+                    console.log('✅ DEMO-DATA LUOTU! Items:', this.items.length);
+                    
+                    // Update display
+                    this.updateDisplay();
+                    document.getElementById('connection-status').textContent = 'Demo-data';
+                    
+                    console.log('🎉 DEMO-DATA NÄKYMILLÄ!');
+                    
+                    // Show notice about demo data
+                    setTimeout(() => {
+                        const contentList = document.getElementById('content-list');
+                        if (contentList && !contentList.querySelector('.demo-notice')) {
+                            const demoNotice = document.createElement('div');
+                            demoNotice.className = 'demo-notice';
+                            demoNotice.style.cssText = 'background: #fef3c7; border: 1px solid #f59e0b; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; color: #92400e;';
+                            demoNotice.innerHTML = '⚠️ <strong>Demo-tila:</strong> Näytetään esimerkkitietoja. Oikeat tiedot ladataan, kun proxy-yhteys toimii.';
+                            contentList.insertBefore(demoNotice, contentList.firstChild);
+                        }
+                    }, 500);
+                    
+                } catch (error) {
+                    console.error('❌ DEMO-DATA LATAUS EPÄONNISTUI:', error);
+                }
             }
         }
 
