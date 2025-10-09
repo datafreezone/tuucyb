@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <defaultDocument>
+      <files>
+        <clear />
+        <add value="index.html" />
+      </files>
+    </defaultDocument>
+    <staticContent>
+      <remove fileExtension=".json" />
+      <mimeMap fileExtension=".json" mimeType="application/json" />
+      <remove fileExtension=".xml" />
+      <mimeMap fileExtension=".xml" mimeType="application/xml" />
+    </staticContent>
+    <httpErrors errorMode="DetailedLocalOnly" />
+    <httpHeaders>
+      <remove name="Access-Control-Allow-Origin" />
+      <add name="Access-Control-Allow-Origin" value="*" />
+      <remove name="Access-Control-Allow-Methods" />
+      <add name="Access-Control-Allow-Methods" value="GET,POST,OPTIONS" />
+      <remove name="Access-Control-Allow-Headers" />
+      <add name="Access-Control-Allow-Headers" value="Content-Type" />
+    </httpHeaders>
+  </system.webServer>
+</configuration>
