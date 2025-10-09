@@ -857,28 +857,33 @@
             async loadContent() {
                 const proxies = [
                     {
-                        name: 'AllOrigins',
+                        name: 'AllOrigins (Primary)',
                         url: `https://api.allorigins.win/get?url=${encodeURIComponent(this.feedUrl)}`,
                         isJson: true
                     },
                     {
-                        name: 'CORS Anywhere',
-                        url: `https://cors-anywhere.herokuapp.com/${this.feedUrl}`,
+                        name: 'Proxy Cors (heroku)',
+                        url: `https://proxy-cors.herokuapp.com/${this.feedUrl}`,
                         isJson: false
                     },
                     {
-                        name: 'ThingProxy',
-                        url: `https://thingproxy.freeboard.io/fetch/${this.feedUrl}`,
+                        name: 'JSONProxy',
+                        url: `https://jsonp.afeld.me/?url=${encodeURIComponent(this.feedUrl)}`,
+                        isJson: false
+                    },
+                    {
+                        name: 'CrossOrigin.me',
+                        url: `https://crossorigin.me/${this.feedUrl}`,
+                        isJson: false
+                    },
+                    {
+                        name: 'YACDN',
+                        url: `https://yacdn.org/proxy/${this.feedUrl}`,
                         isJson: false
                     },
                     {
                         name: 'CORS.io',
                         url: `https://cors.io/?${this.feedUrl}`,
-                        isJson: false
-                    },
-                    {
-                        name: 'Proxy.Cors.sh',
-                        url: `https://proxy.cors.sh/${this.feedUrl}`,
                         isJson: false
                     }
                 ];
@@ -886,6 +891,32 @@
                 document.getElementById('connection-status').textContent = 'Päivitetään...';
                 console.log('🔄 Aloitetaan tietojen lataus NCSC-FI syötteestä...');
                 
+                // Try direct connection first (might work in server environment)
+                console.log('🎯 Kokeillaan ensin suoraa yhteyttä...');
+                try {
+                    const directResponse = await fetch(this.feedUrl, {
+                        method: 'GET',
+                        mode: 'cors',
+                        headers: {
+                            'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+                        }
+                    });
+                    
+                    if (directResponse.ok) {
+                        const directContent = await directResponse.text();
+                        if (directContent && directContent.includes('<rss') && directContent.includes('<channel>')) {
+                            console.log('✅ Suora yhteys toimii! Sisältö pituus:', directContent.length);
+                            this.parseRSSFeed(directContent);
+                            this.updateDisplay();
+                            document.getElementById('connection-status').textContent = 'Yhdistetty (suora)';
+                            return;
+                        }
+                    }
+                } catch (directError) {
+                    console.log('❌ Suora yhteys epäonnistui (odotettua):', directError.message);
+                }
+                
+                console.log('🌐 Kokeillaan proxy-palvelimia...');
                 for (let i = 0; i < proxies.length; i++) {
                     const proxy = proxies[i];
                     try {
@@ -945,8 +976,23 @@
                         if (i === proxies.length - 1) {
                             // Last proxy failed
                             console.error('🚫 Kaikki proxy palvelut epäonnistuivat');
-                            this.showError(`Tietojen lataus epäonnistui. Kaikki proxy palvelut eivät toimi. Viimeisin virhe: ${error.message}`);
-                            document.getElementById('connection-status').textContent = 'Virhe';
+                            const errorDetails = `
+                            NCSC-FI RSS syötteen lataus epäonnistui.
+                            
+                            📊 Testattu ${proxies.length + 1} eri tapaa:
+                            • Suora yhteys (CORS esto)
+                            • ${proxies.length} eri proxy-palvelinta
+                            
+                            🔍 Viimeisin virhe: ${error.message}
+                            
+                            🚫 Syy: Selaimet estavät CORS-pyynnot kolmansien osapuolien palvelimille.
+                            NCSC-FI RSS syöte on saatavilla suoraan osoitteessa:
+                            https://www.kyberturvallisuuskeskus.fi/feed/rss/fi
+                            
+                            🔄 Yritetään automaattisesti uudelleen 30 sekunnin kuluttua.
+                            `;
+                            this.showError(errorDetails);
+                            document.getElementById('connection-status').textContent = 'CORS-virhe';
                         } else {
                             console.log('🔄 Kokeillaan seuraavaa proxy palvelinta...');
                         }
@@ -1173,104 +1219,15 @@
             }
 
             showError(message) {
-                console.log('🚫 Näytetään virhe käyttäjälle ja ladataan demo-dataa HETI');
+                console.log('🚫 Näytetään virhe - EI demo-dataa, vain oikea data');
                 document.getElementById('content-list').innerHTML = 
-                    `<div class="error">${message}<br><br>🔄 Ladataan demo-dataa näytettäväksi...</div>`;
+                    `<div class="error">${message}<br><br>🔄 Yritetään uudelleen 30 sekunnin kuluttua...</div>`;
                 
-                // Load demo data immediately as fallback
-                console.log('⚡ Ladataan demo-data välittömästi...');
-                this.loadDemoData();
-            }
-            
-            loadDemoData() {
-                console.log('📋 ALOITETAAN DEMO-DATA LATAUS');
-                
-                try {
-                    // Create demo items directly instead of parsing XML
-                    this.items = [
-                        {
-                            title: 'Kriittinen haavoittuvuus Apache HTTP Server -palvelimessa',
-                            link: 'https://www.kyberturvallisuuskeskus.fi/fi/haavoittuvuus_2025_001',
-                            pubDate: 'Thu, 09 Oct 2025 10:30:00 GMT',
-                            description: 'Apache HTTP Server -palvelimessa on havaittu kriittinen haavoittuvuus, joka mahdollistaa etäkoodin suorittamisen. Suosittelemme välitöntä päivitystä uusimpaan versioon.',
-                            category: 'haavoittuvuus',
-                            categoryLabel: 'Haavoittuvuus',
-                            icon: '🚨',
-                            isNew: true,
-                            id: 'demo-001'
-                        },
-                        {
-                            title: 'Varoitus: Uusi tietojenkalastelukampanja kohdistuu suomalaisiin pankkiasiakkaisiin',
-                            link: 'https://www.kyberturvallisuuskeskus.fi/fi/varoitus_2025_002',
-                            pubDate: 'Wed, 08 Oct 2025 14:15:00 GMT',
-                            description: 'Havaitsimme laajan tietojenkalastelukampanjan, joka matkii suomalaisten pankkien verkkosivuja. Kampanja pyrkii huijaamaan käyttäjiä luovuttamaan pankkitunnuksensa.',
-                            category: 'varoitus',
-                            categoryLabel: 'Varoitus',
-                            icon: '⚠️',
-                            isNew: true,
-                            id: 'demo-002'
-                        },
-                        {
-                            title: 'Kyberturvallisuuden viikkokatsaus 41/2025',
-                            link: 'https://www.kyberturvallisuuskeskus.fi/fi/viikkokatsaus_2025_41',
-                            pubDate: 'Mon, 06 Oct 2025 09:00:00 GMT',
-                            description: 'Viikon 41 kyberturvallisuuskatsaus: Uusia uhkia, haavoittuvuuksia ja suojautumisohjeita suomalaisille organisaatioille.',
-                            category: 'katsaus',
-                            categoryLabel: 'Viikkokatsaus',
-                            icon: '📊',
-                            isNew: false,
-                            id: 'demo-003'
-                        },
-                        {
-                            title: 'Kybersää lokakuu 2025: Uhka-arvio ja suositukset',
-                            link: 'https://www.kyberturvallisuuskeskus.fi/fi/kybersaa_2025_10',
-                            pubDate: 'Tue, 01 Oct 2025 08:00:00 GMT',
-                            description: 'Lokakuun 2025 kybersää-raportti sisältää arvion ajankohtaisista kyberuhista ja suosituksia organisaatioille.',
-                            category: 'kybersaa',
-                            categoryLabel: 'Kybersää',
-                            icon: '🌤️',
-                            isNew: false,
-                            id: 'demo-004'
-                        },
-                        {
-                            title: 'Tiedote: Kyberturvallisuuskeskuksen uudet palvelut',
-                            link: 'https://www.kyberturvallisuuskeskus.fi/fi/ajankohtaista_2025_003',
-                            pubDate: 'Fri, 03 Oct 2025 12:00:00 GMT',
-                            description: 'NCSC-FI lanseeraa uusia kyberturvallisuuspalveluita suomalaisille organisaatioille. Lue lisää uusista palveluistamme ja niiden hyödyistä.',
-                            category: 'ajankohtaista',
-                            categoryLabel: 'Ajankohtaista',
-                            icon: '📰',
-                            isNew: false,
-                            id: 'demo-005'
-                        }
-                    ];
-                    
-                    this.lastUpdate = new Date();
-                    this.feedBuildDate = 'Thu, 09 Oct 2025 11:00:00 GMT';
-                    
-                    console.log('✅ DEMO-DATA LUOTU! Items:', this.items.length);
-                    
-                    // Update display
-                    this.updateDisplay();
-                    document.getElementById('connection-status').textContent = 'Demo-data';
-                    
-                    console.log('🎉 DEMO-DATA NÄKYMILLÄ!');
-                    
-                    // Show notice about demo data
-                    setTimeout(() => {
-                        const contentList = document.getElementById('content-list');
-                        if (contentList && !contentList.querySelector('.demo-notice')) {
-                            const demoNotice = document.createElement('div');
-                            demoNotice.className = 'demo-notice';
-                            demoNotice.style.cssText = 'background: #fef3c7; border: 1px solid #f59e0b; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; color: #92400e;';
-                            demoNotice.innerHTML = '⚠️ <strong>Demo-tila:</strong> Näytetään esimerkkitietoja. Oikeat tiedot ladataan, kun proxy-yhteys toimii.';
-                            contentList.insertBefore(demoNotice, contentList.firstChild);
-                        }
-                    }, 500);
-                    
-                } catch (error) {
-                    console.error('❌ DEMO-DATA LATAUS EPÄONNISTUI:', error);
-                }
+                // Retry loading real data after 30 seconds
+                setTimeout(() => {
+                    console.log('🔄 Yritetään ladata oikeaa dataa uudelleen...');
+                    this.loadContent();
+                }, 30000);
             }
         }
 
