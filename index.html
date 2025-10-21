@@ -994,8 +994,8 @@
                 console.log('🔄 Haetaan tietoja Azure Function API:sta...');
                 
                 try {
-                    // Use Azure Function API endpoint
-                    const apiUrl = '/api/ncsc-rss';
+                    // Use PHP proxy endpoint
+                    const apiUrl = '/api/ncsc-rss.php';
                     console.log(`📡 Kutsutaan API: ${apiUrl}`);
                     
                     const response = await fetch(apiUrl, {
@@ -1029,25 +1029,25 @@
                     this.updateDisplay();
                     
                     document.getElementById('connection-status').textContent = 'Yhdistetty (API)';
-                    console.log('✅ Tiedot ladattu onnistuneesti Azure Function API:sta');
+                    console.log('✅ Tiedot ladattu onnistuneesti PHP proxy API:sta');
                     
                 } catch (error) {
-                    console.error('❌ Azure Function API kutsu epäonnistui:', error.message);
+                    console.error('❌ PHP proxy API kutsu epäonnistui:', error.message);
                     
                     const errorDetails = `
-                    NCSC-FI RSS syötteen lataus epäonnistui Azure Function API:sta.
+                    NCSC-FI RSS syötteen lataus epäonnistui PHP proxy API:sta.
                     
                     🔍 Virhe: ${error.message}
                     
                     💡 Mahdollisia syitä:
-                    • Azure Function ei ole käynnissä tai deployed
-                    • API endpoint /api/ncsc-rss ei ole saatavilla
+                    • PHP proxy ei ole deployed
+                    • API endpoint /api/ncsc-rss.php ei ole saatavilla
                     • Verkko-ongelma NCSC-FI palvelimen kanssa
                     
                     🔄 Yritetään automaattisesti uudelleen 2 minuutin kuluttua.
                     
                     📋 Tekninen tieto:
-                    • API URL: /api/ncsc-rss
+                    • API URL: /api/ncsc-rss.php
                     • Aikaleima: ${new Date().toLocaleString('fi-FI')}
                     `;
                     
