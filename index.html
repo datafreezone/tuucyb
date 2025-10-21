@@ -773,7 +773,7 @@
                 <div class="header-title">
                     <h1>Tuusulan kunta</h1>
                     <div class="subtitle">Digitaalisaatio ja tietohallinto - Kyberturvallisuus</div>
-                    <div class="deployment-info">Deployed: 2025-10-21 23:46 GMT (CorsProxy Fix)</div>
+                    <div class="deployment-info">Deployed: 2025-10-21 23:47 GMT (UTF-8 Fixed)</div>
                 </div>
             </div>
             <div class="header-right">
@@ -1003,7 +1003,8 @@
                     const response = await fetch(proxyUrl, {
                         method: 'GET',
                         headers: {
-                            'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+                            'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+                            'Accept-Charset': 'utf-8'
                         }
                     });
                     
@@ -1013,8 +1014,11 @@
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
                     
-                    const xmlContent = await response.text();
-                    console.log('🔓 Saatu suora XML vastaus corsproxy.io:sta');
+                    // Get response as ArrayBuffer first for proper UTF-8 decoding
+                    const buffer = await response.arrayBuffer();
+                    const decoder = new TextDecoder('utf-8');
+                    const xmlContent = decoder.decode(buffer);
+                    console.log('🔓 Saatu UTF-8 dekoodattu XML vastaus corsproxy.io:sta');
                     
                     console.log('📄 RSS sisältö saatu (pituus:', xmlContent?.length || 0, 'merkkiä)');
                     
