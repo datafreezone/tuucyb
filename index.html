@@ -773,7 +773,7 @@
                 <div class="header-title">
                     <h1>Tuusulan kunta</h1>
                     <div class="subtitle">Digitaalisaatio ja tietohallinto - Kyberturvallisuus</div>
-                    <div class="deployment-info">Deployed: 2025-10-21 23:37 GMT (PHP Proxy v2.0)</div>
+                    <div class="deployment-info">Deployed: 2025-10-21 23:39 GMT (CORS Proxy Fix)</div>
                 </div>
             </div>
             <div class="header-right">
@@ -991,68 +991,61 @@
 
             async loadContent() {
                 document.getElementById('connection-status').textContent = 'Päivitetään...';
-                console.log('🔄 Haetaan tietoja PHP proxy API:sta...');
+                console.log('🔄 Haetaan NCSC-FI tietoja...');
+                
+                // Simple working CORS proxy solution
+                const rssUrl = 'https://www.kyberturvallisuuskeskus.fi/feed/rss/fi';
+                const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rssUrl)}`;
                 
                 try {
-                    // Use API proxy endpoint  
-                    const apiUrl = '/api/ncsc-rss';
-                    console.log(`📡 Kutsutaan API: ${apiUrl}`);
+                    console.log('🌐 Haetaan RSS syötettä CORS proxyn kautta...');
                     
-                    const response = await fetch(apiUrl, {
+                    const response = await fetch(proxyUrl, {
                         method: 'GET',
                         headers: {
-                            'Accept': 'application/json'
+                            'Accept': 'application/rss+xml, application/xml, text/xml, */*'
                         }
                     });
                     
-                    console.log(`📊 API vastaus: ${response.status} ${response.statusText}`);
+                    console.log(`📊 Vastaus: ${response.status} ${response.statusText}`);
                     
                     if (!response.ok) {
-                        throw new Error(`API virhe: HTTP ${response.status} - ${response.statusText}`);
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
                     
-                    const data = await response.json();
-                    console.log('📦 API vastaus:', data);
+                    const xmlContent = await response.text();
+                    console.log('📄 RSS sisältö saatu (pituus:', xmlContent.length, 'merkkiä)');
                     
-                    if (!data.success) {
-                        throw new Error(`API palautti virheen: ${data.error}`);
+                    if (!xmlContent || !xmlContent.includes('<rss') || !xmlContent.includes('<channel>')) {
+                        throw new Error('Ei kelvollista RSS sisältöä');
                     }
-                    
-                    if (!data.content) {
-                        throw new Error('API vastauksessa ei ole RSS sisältöä');
-                    }
-                    
-                    console.log('📄 RSS sisältö saatu (pituus:', data.contentLength, 'merkkiä)');
                     
                     // Parse the RSS content
-                    this.parseRSSFeed(data.content);
+                    this.parseRSSFeed(xmlContent);
                     this.updateDisplay();
                     
-                    document.getElementById('connection-status').textContent = 'Yhdistetty (API)';
-                    console.log('✅ Tiedot ladattu onnistuneesti PHP proxy API:sta');
+                    document.getElementById('connection-status').textContent = 'Yhdistetty';
+                    console.log('✅ NCSC-FI tiedot ladattu onnistuneesti!');
                     
                 } catch (error) {
-                    console.error('❌ PHP proxy API kutsu epäonnistui:', error.message);
+                    console.error('❌ RSS lataus epäonnistui:', error.message);
                     
                     const errorDetails = `
-                    NCSC-FI RSS syötteen lataus epäonnistui PHP proxy API:sta.
+                    NCSC-FI RSS syötteen lataus epäonnistui.
                     
                     🔍 Virhe: ${error.message}
                     
-                    💡 Mahdollisia syitä:
-                    • PHP proxy ei ole deployed
-                    • API endpoint /api/ncsc-rss ei ole saatavilla
-                    • Verkko-ongelma NCSC-FI palvelimen kanssa
+                    💡 Tila: Käytetään CORS proxy palvelua
+                    • RSS URL: ${rssUrl}
+                    • Proxy: api.codetabs.com
                     
                     🔄 Yritetään automaattisesti uudelleen 2 minuutin kuluttua.
                     
-                    📋 Tekninen tieto:
-                    • API URL: /api/ncsc-rss
-                    • Aikaleima: ${new Date().toLocaleString('fi-FI')}
+                    📋 Aikaleima: ${new Date().toLocaleString('fi-FI')}
                     `;
                     
                     this.showError(errorDetails);
-                    document.getElementById('connection-status').textContent = 'API-virhe';
+                    document.getElementById('connection-status').textContent = 'Yhteysvika';
                 }
             }
 
