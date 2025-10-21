@@ -773,7 +773,7 @@
                 <div class="header-title">
                     <h1>Tuusulan kunta</h1>
                     <div class="subtitle">Digitaalisaatio ja tietohallinto - Kyberturvallisuus</div>
-                    <div class="deployment-info">Deployed: 2025-10-21 23:39 GMT (CORS Proxy Fix)</div>
+                    <div class="deployment-info">Deployed: 2025-10-21 23:41 GMT (AllOrigins Fix)</div>
                 </div>
             </div>
             <div class="header-right">
@@ -995,7 +995,7 @@
                 
                 // Simple working CORS proxy solution
                 const rssUrl = 'https://www.kyberturvallisuuskeskus.fi/feed/rss/fi';
-                const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(rssUrl)}`;
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`;
                 
                 try {
                     console.log('🌐 Haetaan RSS syötettä CORS proxyn kautta...');
@@ -1013,8 +1013,17 @@
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
                     
-                    const xmlContent = await response.text();
-                    console.log('📄 RSS sisältö saatu (pituus:', xmlContent.length, 'merkkiä)');
+                    const data = await response.json();
+                    let xmlContent = data.contents;
+                    
+                    // Handle base64 encoding from AllOrigins
+                    if (xmlContent && xmlContent.startsWith('data:application/rss+xml; charset=utf-8;base64,')) {
+                        const base64Content = xmlContent.replace('data:application/rss+xml; charset=utf-8;base64,', '');
+                        xmlContent = atob(base64Content);
+                        console.log('🔓 Dekoodattu base64 RSS sisältö');
+                    }
+                    
+                    console.log('📄 RSS sisältö saatu (pituus:', xmlContent?.length || 0, 'merkkiä)');
                     
                     if (!xmlContent || !xmlContent.includes('<rss') || !xmlContent.includes('<channel>')) {
                         throw new Error('Ei kelvollista RSS sisältöä');
@@ -1037,7 +1046,7 @@
                     
                     💡 Tila: Käytetään CORS proxy palvelua
                     • RSS URL: ${rssUrl}
-                    • Proxy: api.codetabs.com
+                    • Proxy: api.allorigins.win
                     
                     🔄 Yritetään automaattisesti uudelleen 2 minuutin kuluttua.
                     
