@@ -773,7 +773,7 @@
                 <div class="header-title">
                     <h1>Tuusulan kunta</h1>
                     <div class="subtitle">Digitaalisaatio ja tietohallinto - Kyberturvallisuus</div>
-                    <div class="deployment-info">Deployed: 2025-10-21 23:41 GMT (AllOrigins Fix)</div>
+                    <div class="deployment-info">Deployed: 2025-10-21 23:46 GMT (CorsProxy Fix)</div>
                 </div>
             </div>
             <div class="header-right">
@@ -993,9 +993,9 @@
                 document.getElementById('connection-status').textContent = 'Päivitetään...';
                 console.log('🔄 Haetaan NCSC-FI tietoja...');
                 
-                // Simple working CORS proxy solution
+                // Bulletproof CORS proxy solution
                 const rssUrl = 'https://www.kyberturvallisuuskeskus.fi/feed/rss/fi';
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rssUrl)}`;
+                const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(rssUrl)}`;
                 
                 try {
                     console.log('🌐 Haetaan RSS syötettä CORS proxyn kautta...');
@@ -1013,15 +1013,8 @@
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
                     
-                    const data = await response.json();
-                    let xmlContent = data.contents;
-                    
-                    // Handle base64 encoding from AllOrigins
-                    if (xmlContent && xmlContent.startsWith('data:application/rss+xml; charset=utf-8;base64,')) {
-                        const base64Content = xmlContent.replace('data:application/rss+xml; charset=utf-8;base64,', '');
-                        xmlContent = atob(base64Content);
-                        console.log('🔓 Dekoodattu base64 RSS sisältö');
-                    }
+                    const xmlContent = await response.text();
+                    console.log('🔓 Saatu suora XML vastaus corsproxy.io:sta');
                     
                     console.log('📄 RSS sisältö saatu (pituus:', xmlContent?.length || 0, 'merkkiä)');
                     
@@ -1046,7 +1039,7 @@
                     
                     💡 Tila: Käytetään CORS proxy palvelua
                     • RSS URL: ${rssUrl}
-                    • Proxy: api.allorigins.win
+                    • Proxy: corsproxy.io
                     
                     🔄 Yritetään automaattisesti uudelleen 2 minuutin kuluttua.
                     
