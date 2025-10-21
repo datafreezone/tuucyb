@@ -990,148 +990,69 @@
             }
 
             async loadContent() {
-                const proxies = [
-                    {
-                        name: 'AllOrigins (Primary)',
-                        url: `https://api.allorigins.win/get?url=${encodeURIComponent(this.feedUrl)}`,
-                        isJson: true
-                    },
-                    {
-                        name: 'Proxy Cors (heroku)',
-                        url: `https://proxy-cors.herokuapp.com/${this.feedUrl}`,
-                        isJson: false
-                    },
-                    {
-                        name: 'JSONProxy',
-                        url: `https://jsonp.afeld.me/?url=${encodeURIComponent(this.feedUrl)}`,
-                        isJson: false
-                    },
-                    {
-                        name: 'CrossOrigin.me',
-                        url: `https://crossorigin.me/${this.feedUrl}`,
-                        isJson: false
-                    },
-                    {
-                        name: 'YACDN',
-                        url: `https://yacdn.org/proxy/${this.feedUrl}`,
-                        isJson: false
-                    },
-                    {
-                        name: 'CORS.io',
-                        url: `https://cors.io/?${this.feedUrl}`,
-                        isJson: false
-                    }
-                ];
-
                 document.getElementById('connection-status').textContent = 'Päivitetään...';
-                console.log('🔄 Aloitetaan tietojen lataus NCSC-FI syötteestä...');
+                console.log('🔄 Haetaan tietoja Azure Function API:sta...');
                 
-                // Try direct connection first (might work in server environment)
-                console.log('🎯 Kokeillaan ensin suoraa yhteyttä...');
                 try {
-                    const directResponse = await fetch(this.feedUrl, {
+                    // Use Azure Function API endpoint
+                    const apiUrl = '/api/ncsc-rss';
+                    console.log(`📡 Kutsutaan API: ${apiUrl}`);
+                    
+                    const response = await fetch(apiUrl, {
                         method: 'GET',
-                        mode: 'cors',
                         headers: {
-                            'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+                            'Accept': 'application/json'
                         }
                     });
                     
-                    if (directResponse.ok) {
-                        const directContent = await directResponse.text();
-                        if (directContent && directContent.includes('<rss') && directContent.includes('<channel>')) {
-                            console.log('✅ Suora yhteys toimii! Sisältö pituus:', directContent.length);
-                            this.parseRSSFeed(directContent);
-                            this.updateDisplay();
-                            document.getElementById('connection-status').textContent = 'Yhdistetty (suora)';
-                            return;
-                        }
+                    console.log(`📊 API vastaus: ${response.status} ${response.statusText}`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`API virhe: HTTP ${response.status} - ${response.statusText}`);
                     }
-                } catch (directError) {
-                    console.log('❌ Suora yhteys epäonnistui (odotettua):', directError.message);
-                }
-                
-                console.log('🌐 Kokeillaan proxy-palvelimia...');
-                for (let i = 0; i < proxies.length; i++) {
-                    const proxy = proxies[i];
-                    try {
-                        console.log(`🌐 Kokeillaan proxy ${i + 1}/${proxies.length}: ${proxy.name}`);
-                        console.log(`📡 URL: ${proxy.url}`);
-                        
-                        const response = await fetch(proxy.url, {
-                            method: 'GET',
-                            headers: {
-                                'Accept': 'application/rss+xml, application/xml, text/xml, text/plain, */*'
-                            }
-                        });
-                        
-                        console.log(`📊 Vastaus: ${response.status} ${response.statusText}`);
-                        
-                        if (!response.ok) {
-                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                        }
-                        
-                        let xmlContent;
-                        
-                        if (proxy.isJson) {
-                            const data = await response.json();
-                            console.log('📦 JSON vastaus:', data);
-                            
-                            if (data.contents) {
-                                // Handle potential base64 encoding
-                                if (data.contents.startsWith('data:application/rss+xml; charset=utf-8;base64,')) {
-                                    const base64Content = data.contents.replace('data:application/rss+xml; charset=utf-8;base64,', '');
-                                    xmlContent = atob(base64Content);
-                                    console.log('🔓 Dekoodattu base64 sisältö');
-                                } else {
-                                    xmlContent = data.contents;
-                                }
-                            } else {
-                                throw new Error('Ei sisältöä JSON vastauksessa');
-                            }
-                        } else {
-                            xmlContent = await response.text();
-                        }
-                        
-                        console.log('📄 XML sisältö (ensimmäiset 300 merkkiä):', xmlContent.substring(0, 300));
-                        
-                        if (xmlContent && xmlContent.includes('<rss') && xmlContent.includes('<channel>')) {
-                            console.log('✅ Kelvollinen RSS syöte löytyi!');
-                            this.parseRSSFeed(xmlContent);
-                            this.updateDisplay();
-                            document.getElementById('connection-status').textContent = 'Yhdistetty';
-                            console.log(`🎉 Tiedot ladattu onnistuneesti proxy:lla ${proxy.name}`);
-                            return; // Success, exit the loop
-                        } else {
-                            throw new Error('Ei kelvollista RSS sisältöä');
-                        }
-                        
-                    } catch (error) {
-                        console.error(`❌ Proxy ${proxy.name} epäonnistui:`, error.message);
-                        if (i === proxies.length - 1) {
-                            // Last proxy failed
-                            console.error('🚫 Kaikki proxy palvelut epäonnistuivat');
-                            const errorDetails = `
-                            NCSC-FI RSS syötteen lataus epäonnistui.
-                            
-                            📊 Testattu ${proxies.length + 1} eri tapaa:
-                            • Suora yhteys (CORS esto)
-                            • ${proxies.length} eri proxy-palvelinta
-                            
-                            🔍 Viimeisin virhe: ${error.message}
-                            
-                            🚫 Syy: Selaimet estavät CORS-pyynnot kolmansien osapuolien palvelimille.
-                            NCSC-FI RSS syöte on saatavilla suoraan osoitteessa:
-                            https://www.kyberturvallisuuskeskus.fi/feed/rss/fi
-                            
-                            🔄 Yritetään automaattisesti uudelleen 30 sekunnin kuluttua.
-                            `;
-                            this.showError(errorDetails);
-                            document.getElementById('connection-status').textContent = 'CORS-virhe';
-                        } else {
-                            console.log('🔄 Kokeillaan seuraavaa proxy palvelinta...');
-                        }
+                    
+                    const data = await response.json();
+                    console.log('📦 API vastaus:', data);
+                    
+                    if (!data.success) {
+                        throw new Error(`API palautti virheen: ${data.error}`);
                     }
+                    
+                    if (!data.content) {
+                        throw new Error('API vastauksessa ei ole RSS sisältöä');
+                    }
+                    
+                    console.log('📄 RSS sisältö saatu (pituus:', data.contentLength, 'merkkiä)');
+                    
+                    // Parse the RSS content
+                    this.parseRSSFeed(data.content);
+                    this.updateDisplay();
+                    
+                    document.getElementById('connection-status').textContent = 'Yhdistetty (API)';
+                    console.log('✅ Tiedot ladattu onnistuneesti Azure Function API:sta');
+                    
+                } catch (error) {
+                    console.error('❌ Azure Function API kutsu epäonnistui:', error.message);
+                    
+                    const errorDetails = `
+                    NCSC-FI RSS syötteen lataus epäonnistui Azure Function API:sta.
+                    
+                    🔍 Virhe: ${error.message}
+                    
+                    💡 Mahdollisia syitä:
+                    • Azure Function ei ole käynnissä tai deployed
+                    • API endpoint /api/ncsc-rss ei ole saatavilla
+                    • Verkko-ongelma NCSC-FI palvelimen kanssa
+                    
+                    🔄 Yritetään automaattisesti uudelleen 2 minuutin kuluttua.
+                    
+                    📋 Tekninen tieto:
+                    • API URL: /api/ncsc-rss
+                    • Aikaleima: ${new Date().toLocaleString('fi-FI')}
+                    `;
+                    
+                    this.showError(errorDetails);
+                    document.getElementById('connection-status').textContent = 'API-virhe';
                 }
             }
 

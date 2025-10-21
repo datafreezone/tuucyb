@@ -1,0 +1,16 @@
+{
+  "name": "tuucyb-api",
+  "version": "1.0.0",
+  "description": "Azure Functions for Tuusula Cybersecurity Dashboard",
+  "main": "index.js",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.12"
+  },
+  "scripts": {
+    "start": "func start",
+    "test": "echo \"No tests yet\""
+  }
+}

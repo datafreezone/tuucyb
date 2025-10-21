@@ -18,14 +18,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Azure Functions Core Tools
+        run: npm install -g azure-functions-core-tools@4 --unsafe-perm true
+
+      - name: Install API dependencies
+        run: |
+          cd api
+          npm install
+          cd ..
+
       - name: Prepare deployment files
         run: |
-          echo "Preparing static site files for deployment..."
+          echo "Preparing static site and API files for deployment..."
           ls -la
           echo "Files ready for deployment:"
           echo "- index.html (main dashboard)"
           echo "- web.config (IIS configuration)"
           echo "- .deployment (Azure deployment settings)"
+          echo "- api/ (Azure Functions)"
+          ls -la api/
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
