@@ -773,7 +773,7 @@
                 <div class="header-title">
                     <h1>Tuusulan kunta</h1>
                     <div class="subtitle">Digitaalisaatio ja tietohallinto - Kyberturvallisuus</div>
-                    <div class="deployment-info">Deployed: 2025-10-09 11:01 GMT</div>
+                    <div class="deployment-info">Deployed: 2025-10-21 23:37 GMT (PHP Proxy v2.0)</div>
                 </div>
             </div>
             <div class="header-right">
@@ -991,11 +991,11 @@
 
             async loadContent() {
                 document.getElementById('connection-status').textContent = 'Päivitetään...';
-                console.log('🔄 Haetaan tietoja Azure Function API:sta...');
+                console.log('🔄 Haetaan tietoja PHP proxy API:sta...');
                 
                 try {
-                    // Use PHP proxy endpoint
-                    const apiUrl = '/api/ncsc-rss.php';
+                    // Use API proxy endpoint  
+                    const apiUrl = '/api/ncsc-rss';
                     console.log(`📡 Kutsutaan API: ${apiUrl}`);
                     
                     const response = await fetch(apiUrl, {
@@ -1041,13 +1041,13 @@
                     
                     💡 Mahdollisia syitä:
                     • PHP proxy ei ole deployed
-                    • API endpoint /api/ncsc-rss.php ei ole saatavilla
+                    • API endpoint /api/ncsc-rss ei ole saatavilla
                     • Verkko-ongelma NCSC-FI palvelimen kanssa
                     
                     🔄 Yritetään automaattisesti uudelleen 2 minuutin kuluttua.
                     
                     📋 Tekninen tieto:
-                    • API URL: /api/ncsc-rss.php
+                    • API URL: /api/ncsc-rss
                     • Aikaleima: ${new Date().toLocaleString('fi-FI')}
                     `;
                     
