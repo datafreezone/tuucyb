@@ -933,8 +933,8 @@
         </div>
 
         <div class="feed-info">
-            <p><strong>Tiedustelulähde:</strong> <a href="https://www.kyberturvallisuuskeskus.fi/sites/default/files/rss/vulns.xml" target="_blank">NCSC-FI Haavoittuvuussyöte (Vulnerabilities Feed)</a></p>
-            <p><strong>Luokitus:</strong> Virallinen kyberturvallisuushaavoittuvuustiedustelu ja -ohjeistus suomalaisille organisaatioille</p>
+            <p><strong>Tiedustelulähde:</strong> <a href="https://www.kyberturvallisuuskeskus.fi/feed/rss/fi" target="_blank">NCSC-FI Kattava RSS-syöte</a></p>
+            <p><strong>Sisältää:</strong> Viikkokatsaukset, tietomurrot, varoitukset, kybersääraportit, haavoittuvuudet ja ajankohtaiset tietoturva-asiat</p>
             <p><strong>Päivitystiheys:</strong> Automaattinen päivitys 2 minuutin välein | Syöte päivittyy jatkuvasti</p>
         </div>
     </div>
@@ -942,7 +942,7 @@
     <script>
         class NCSCFIFinnishDashboard {
             constructor() {
-                this.feedUrl = 'https://www.kyberturvallisuuskeskus.fi/sites/default/files/rss/vulns.xml';
+                this.feedUrl = 'https://www.kyberturvallisuuskeskus.fi/feed/rss/fi';
                 this.items = [];
                 this.lastUpdate = null;
                 this.feedBuildDate = null;
