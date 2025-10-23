@@ -58,22 +58,40 @@ module.exports = async function (context, req) {
         const rssUrl = 'https://www.kyberturvallisuuskeskus.fi/feed/rss/fi';
         context.log(`Fetching RSS from: ${rssUrl}`);
         
-        // Fetch RSS feed with retry logic
-        const response = await fetchWithRetry(rssUrl, {
-            method: 'GET',
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'application/rss+xml, application/xml, text/xml, */*',
-                'Accept-Language': 'fi-FI,fi;q=0.9,en;q=0.8',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Connection': 'keep-alive',
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-            },
-            timeout: 30000 // 30 second timeout
-        }, 3, 2000); // 3 retries with 2 second delay
+        let response;
+        let xmlContent;
         
-        const xmlContent = await response.text();
+        // Try direct fetch first
+        try {
+            context.log('Attempting direct fetch...');
+            response = await fetchWithRetry(rssUrl, {
+                method: 'GET',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+                    'Accept-Language': 'fi-FI,fi;q=0.9,en;q=0.8',
+                    'Connection': 'keep-alive'
+                },
+                timeout: 30000
+            }, 2, 2000);
+            xmlContent = await response.text();
+        } catch (directError) {
+            context.log(`Direct fetch failed: ${directError.message}, trying CORS proxy...`);
+            
+            // Fallback to CORS proxy
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`;
+            context.log(`Fetching via proxy: ${proxyUrl}`);
+            
+            response = await fetchWithRetry(proxyUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': '*/*'
+                },
+                timeout: 30000
+            }, 2, 2000);
+            xmlContent = await response.text();
+        }
+        
         context.log(`Successfully fetched RSS content (${xmlContent.length} characters)`);
         
         // Validate that we got valid RSS content
