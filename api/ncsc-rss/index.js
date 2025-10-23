@@ -55,7 +55,8 @@ module.exports = async function (context, req) {
     }
     
     try {
-        const rssUrl = 'https://www.kyberturvallisuuskeskus.fi/feed/rss/fi';
+        // Use the vulnerabilities-specific RSS feed that updates frequently
+        const rssUrl = 'https://www.kyberturvallisuuskeskus.fi/sites/default/files/rss/vulns.xml';
         context.log(`Fetching RSS from: ${rssUrl}`);
         
         let response;
