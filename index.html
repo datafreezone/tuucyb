@@ -1010,9 +1010,20 @@
                     
                     console.log(`📊 Vastaus: ${response.status} ${response.statusText}`);
                     
+                    // Check content type
+                    const contentType = response.headers.get('content-type');
+                    console.log(`📝 Content-Type: ${contentType}`);
+                    
                     // Parse JSON response from Azure Function
-                    const data = await response.json();
-                    console.log('📦 Saatu JSON vastaus Azure Functionista');
+                    const responseText = await response.text();
+                    let data;
+                    try {
+                        data = JSON.parse(responseText);
+                        console.log('📦 Saatu JSON vastaus Azure Functionista');
+                    } catch (parseError) {
+                        console.error('❌ JSON parsing failed. Response text:', responseText.substring(0, 200));
+                        throw new Error(`API palautti virheellisen vastauksen: ${responseText.substring(0, 100)}`);
+                    }
                     
                     if (!data.success || !data.content) {
                         throw new Error(data.error || 'Ei RSS sisältöä saatavilla');
