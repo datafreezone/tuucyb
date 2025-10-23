@@ -61,35 +61,40 @@ module.exports = async function (context, req) {
         let response;
         let xmlContent;
         
-        // Try direct fetch first
+        // NCSC-FI blocks Azure IPs, so use CORS proxy as primary method
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`;
+        context.log(`Fetching via proxy: ${proxyUrl}`);
+        
         try {
-            context.log('Attempting direct fetch...');
-            response = await fetchWithRetry(rssUrl, {
-                method: 'GET',
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'application/rss+xml, application/xml, text/xml, */*',
-                    'Accept-Language': 'fi-FI,fi;q=0.9,en;q=0.8',
-                    'Connection': 'keep-alive'
-                },
-                timeout: 30000
-            }, 2, 2000);
-            xmlContent = await response.text();
-        } catch (directError) {
-            context.log(`Direct fetch failed: ${directError.message}, trying CORS proxy...`);
-            
-            // Fallback to CORS proxy
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`;
-            context.log(`Fetching via proxy: ${proxyUrl}`);
-            
             response = await fetchWithRetry(proxyUrl, {
                 method: 'GET',
                 headers: {
-                    'Accept': '*/*'
+                    'Accept': '*/*',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 },
                 timeout: 30000
-            }, 2, 2000);
+            }, 3, 2000);
             xmlContent = await response.text();
+            context.log('Successfully fetched via CORS proxy');
+        } catch (proxyError) {
+            context.log(`CORS proxy failed: ${proxyError.message}, trying direct...`);
+            
+            // Fallback to direct fetch (unlikely to work but worth trying)
+            try {
+                response = await fetchWithRetry(rssUrl, {
+                    method: 'GET',
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+                    },
+                    timeout: 30000
+                }, 2, 2000);
+                xmlContent = await response.text();
+                context.log('Successfully fetched directly');
+            } catch (directError) {
+                context.log.error(`Both methods failed. Proxy: ${proxyError.message}, Direct: ${directError.message}`);
+                throw new Error(`Unable to fetch RSS feed. Proxy error: ${proxyError.message}`);
+            }
         }
         
         context.log(`Successfully fetched RSS content (${xmlContent.length} characters)`);
