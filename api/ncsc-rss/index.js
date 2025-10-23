@@ -61,40 +61,63 @@ module.exports = async function (context, req) {
         
         let response;
         let xmlContent;
+        let lastError;
         
-        // NCSC-FI blocks Azure IPs, so use CORS proxy as primary method
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`;
-        context.log(`Fetching via proxy: ${proxyUrl}`);
+        // Try multiple CORS proxy services in order
+        const proxies = [
+            `https://corsproxy.io/?${encodeURIComponent(rssUrl)}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`,
+            `https://cors-anywhere.herokuapp.com/${rssUrl}`
+        ];
         
-        try {
-            response = await fetchWithRetry(proxyUrl, {
-                method: 'GET',
-                headers: {
-                    'Accept': '*/*',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                },
-                timeout: 30000
-            }, 3, 2000);
-            xmlContent = await response.text();
-            context.log('Successfully fetched via CORS proxy');
-        } catch (proxyError) {
-            context.log(`CORS proxy failed: ${proxyError.message}, trying direct...`);
+        // Try each proxy
+        for (let i = 0; i < proxies.length; i++) {
+            const proxyUrl = proxies[i];
+            context.log(`Attempt ${i + 1}/${proxies.length}: Trying proxy ${proxyUrl}`);
             
-            // Fallback to direct fetch (unlikely to work but worth trying)
             try {
-                response = await fetchWithRetry(rssUrl, {
+                response = await fetchWithRetry(proxyUrl, {
                     method: 'GET',
                     headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                        'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+                        'Accept': '*/*',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                     },
-                    timeout: 30000
-                }, 2, 2000);
+                    timeout: 20000
+                }, 2, 1500);
+                
                 xmlContent = await response.text();
-                context.log('Successfully fetched directly');
-            } catch (directError) {
-                context.log.error(`Both methods failed. Proxy: ${proxyError.message}, Direct: ${directError.message}`);
-                throw new Error(`Unable to fetch RSS feed. Proxy error: ${proxyError.message}`);
+                
+                // Validate it's actually RSS content, not an error page
+                if (xmlContent.includes('<rss') && xmlContent.includes('<channel>')) {
+                    context.log(`✅ Success with proxy ${i + 1}`);
+                    break;
+                } else {
+                    throw new Error('Response is not valid RSS');
+                }
+            } catch (error) {
+                lastError = error;
+                context.log(`❌ Proxy ${i + 1} failed: ${error.message}`);
+                
+                // If this was the last proxy, try direct fetch as final fallback
+                if (i === proxies.length - 1) {
+                    context.log('All proxies failed, trying direct fetch as last resort...');
+                    try {
+                        response = await fetchWithRetry(rssUrl, {
+                            method: 'GET',
+                            headers: {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                                'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+                            },
+                            timeout: 20000
+                        }, 2, 1500);
+                        xmlContent = await response.text();
+                        context.log('✅ Direct fetch succeeded!');
+                        break;
+                    } catch (directError) {
+                        context.log.error(`❌ All methods failed including direct fetch`);
+                        throw new Error(`All fetch methods exhausted. Last error: ${lastError.message}`);
+                    }
+                }
             }
         }
         
