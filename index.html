@@ -996,41 +996,22 @@
                 const rssUrl = 'https://www.kyberturvallisuuskeskus.fi/feed/rss/fi';
                 
                 try {
-                    console.log('🌐 Haetaan RSS syötettä Azure Function API:n kautta...');
+                    console.log('🌐 Haetaan RSS syötettä CDN-välimuistista (feed-cache branch)...');
                     
-                    // Use Azure Function API endpoint (server-side with retry logic)
-                    const apiUrl = '/api/ncsc-rss';
-                    const response = await fetch(apiUrl, {
+                    // Primary: CDN cache (GitHub branch feed-cache via jsDelivr)
+                    const cdnUrl = 'https://cdn.jsdelivr.net/gh/datafreezone/tuucyb@feed-cache/ncsc-rss.json';
+                    const response = await fetch(`${cdnUrl}?t=${Date.now()}`, {
                         method: 'GET',
-                        headers: {
-                            'Accept': 'application/json'
-                        },
-                        cache: 'no-cache'
+                        headers: { 'Accept': 'application/json' },
+                        cache: 'no-store'
                     });
-                    
-                    console.log(`📊 Vastaus: ${response.status} ${response.statusText}`);
-                    
-                    // Check content type
-                    const contentType = response.headers.get('content-type');
-                    console.log(`📝 Content-Type: ${contentType}`);
-                    
-                    // Parse JSON response from Azure Function
-                    const responseText = await response.text();
-                    let data;
-                    try {
-                        data = JSON.parse(responseText);
-                        console.log('📦 Saatu JSON vastaus Azure Functionista');
-                    } catch (parseError) {
-                        console.error('❌ JSON parsing failed. Response text:', responseText.substring(0, 200));
-                        throw new Error(`API palautti virheellisen vastauksen: ${responseText.substring(0, 100)}`);
-                    }
-                    
+                    console.log(`📊 CDN vastaus: ${response.status} ${response.statusText}`);
+                    const data = await response.json();
                     if (!data.success || !data.content) {
-                        throw new Error(data.error || 'Ei RSS sisältöä saatavilla');
+                        throw new Error(data.error || 'CDN ei palauttanut RSS sisältöä');
                     }
-                    
                     const xmlContent = data.content;
-                    console.log('📄 RSS sisältö saatu (pituus:', xmlContent?.length || 0, 'merkkiä)');
+                    console.log('📄 RSS sisältö saatu CDN:stä (pituus:', xmlContent?.length || 0, 'merkkiä)');
                     
                     if (!xmlContent || !xmlContent.includes('<rss') || !xmlContent.includes('<channel>')) {
                         throw new Error('Ei kelvollista RSS sisältöä');
@@ -1044,25 +1025,36 @@
                     console.log('✅ NCSC-FI tiedot ladattu onnistuneesti!');
                     
                 } catch (error) {
-                    console.error('❌ RSS lataus epäonnistui:', error.message);
-                    
-                    const errorDetails = `
-                    NCSC-FI RSS syötteen lataus epäonnistui.
-                    
-                    🔍 Virhe: ${error.message}
-                    
-                    💡 Tila: Käytetään Azure Function API palvelua (serverless)
-                    • RSS URL: ${rssUrl}
-                    • API: /api/ncsc-rss
-                    • Retry: 3 yritystä automaattisesti
-                    
-                    🔄 Yritetään automaattisesti uudelleen 2 minuutin kuluttua.
-                    
-                    📋 Aikaleima: ${new Date().toLocaleString('fi-FI')}
-                    `;
-                    
-                    this.showError(errorDetails);
-                    document.getElementById('connection-status').textContent = 'Yhteysvika';
+                    console.warn('CDN epäonnistui, yritetään Azure Function APIa varamenetelmänä...', error.message);
+                    try {
+                        const apiUrl = '/api/ncsc-rss';
+                        const resp = await fetch(apiUrl, { method: 'GET', headers: { 'Accept': 'application/json' }, cache: 'no-store' });
+                        const data2 = await resp.json();
+                        if (!data2.success || !data2.content) throw new Error(data2.error || 'API ei palauttanut RSS sisältöä');
+                        const xmlContent = data2.content;
+                        if (!xmlContent || !xmlContent.includes('<rss') || !xmlContent.includes('<channel>')) throw new Error('API ei palauttanut kelvollista RSS:ää');
+                        this.parseRSSFeed(xmlContent);
+                        this.updateDisplay();
+                        document.getElementById('connection-status').textContent = 'Yhdistetty';
+                    } catch (fallbackError) {
+                        console.error('❌ RSS lataus epäonnistui sekä CDN:stä että API:sta:', fallbackError.message);
+                        const errorDetails = `
+                        NCSC-FI RSS syötteen lataus epäonnistui.
+                        
+                        🔍 Virhe: ${fallbackError.message}
+                        
+                        💡 Tila: Käytettiin CDN-välimuistia (feed-cache) ja Azure Function APIa varalla
+                        • RSS URL: ${rssUrl}
+                        • CDN: jsDelivr (GitHub feed-cache)
+                        • API: /api/ncsc-rss
+                        
+                        🔄 Yritetään automaattisesti uudelleen 2 minuutin kuluttua.
+                        
+                        📋 Aikaleima: ${new Date().toLocaleString('fi-FI')}
+                        `;
+                        this.showError(errorDetails);
+                        document.getElementById('connection-status').textContent = 'Yhteysvika';
+                    }
                 }
             }
 
