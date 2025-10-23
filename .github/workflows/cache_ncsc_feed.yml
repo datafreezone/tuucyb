@@ -32,12 +32,11 @@ jobs:
           node scripts/fetch_ncsc_feed.mjs
 
       - name: Publish to feed-cache branch
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          # Create or switch to feed-cache branch
-          git checkout -B feed-cache
-          git add ncsc-rss.json
-          git commit -m "chore: update NCSC-FI RSS cache [skip ci]" || echo "No changes to commit"
-          git push origin feed-cache
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: feed-cache
+          folder: cache
+          clean: true
+          single-commit: true
+          commit-message: "chore: update NCSC-FI RSS cache [skip ci]"
 

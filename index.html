@@ -1000,12 +1000,19 @@
                     
                     // Primary: CDN cache (GitHub branch feed-cache via jsDelivr)
                     const cdnUrl = 'https://cdn.jsdelivr.net/gh/datafreezone/tuucyb@feed-cache/ncsc-rss.json';
-                    const response = await fetch(`${cdnUrl}?t=${Date.now()}`, {
-                        method: 'GET',
-                        headers: { 'Accept': 'application/json' },
-                        cache: 'no-store'
+                    let response = await fetch(`${cdnUrl}?t=${Date.now()}`, {
+                        method: 'GET', headers: { 'Accept': 'application/json' }, cache: 'no-store'
                     });
                     console.log(`📊 CDN vastaus: ${response.status} ${response.statusText}`);
+
+                    // Fallback to raw.githubusercontent if jsDelivr fails
+                    if (!response.ok) {
+                        const rawUrl = 'https://raw.githubusercontent.com/datafreezone/tuucyb/feed-cache/ncsc-rss.json';
+                        console.warn('jsDelivr ei onnistunut, kokeillaan raw.githubusercontent...');
+                        response = await fetch(`${rawUrl}?t=${Date.now()}`, { method: 'GET', headers: { 'Accept': 'application/json' }, cache: 'no-store' });
+                        console.log(`📊 raw.githubusercontent vastaus: ${response.status} ${response.statusText}`);
+                    }
+
                     const data = await response.json();
                     if (!data.success || !data.content) {
                         throw new Error(data.error || 'CDN ei palauttanut RSS sisältöä');

@@ -56,8 +56,9 @@ async function main() {
     attempts: attemptErrors.slice(0, 10)
   };
 
-  await fs.writeFile('ncsc-rss.json', JSON.stringify(payload, null, 2), 'utf8');
-  console.log(`Wrote ncsc-rss.json (success=${payload.success})`);
+  await fs.mkdir('cache', { recursive: true });
+  await fs.writeFile('cache/ncsc-rss.json', JSON.stringify(payload, null, 2), 'utf8');
+  console.log(`Wrote cache/ncsc-rss.json (success=${payload.success})`);
 }
 
 main().catch(err => {
