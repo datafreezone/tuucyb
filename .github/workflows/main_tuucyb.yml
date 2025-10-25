@@ -1,0 +1,48 @@
+# Deploy Tuusula Cybersecurity Dashboard to Azure Web App
+# Static HTML site with auto-refresh functionality
+
+name: Deploy Static Site to Azure Web App - tuucyb
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Azure Functions Core Tools
+        run: npm install -g azure-functions-core-tools@4 --unsafe-perm true
+
+      - name: Install API dependencies
+        run: |
+          cd api
+          npm install
+          cd ..
+
+      - name: Prepare deployment files
+        run: |
+          echo "Preparing static site and API files for deployment..."
+          ls -la
+          echo "Files ready for deployment:"
+          echo "- index.html (main dashboard)"
+          echo "- web.config (IIS configuration)"
+          echo "- .deployment (Azure deployment settings)"
+          echo "- api/ (Azure Functions)"
+          ls -la api/
+
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'tuucyb'
+          slot-name: 'Production'
+          package: .
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_B050D27ECD1C4837A30FF57649880DFD }}
